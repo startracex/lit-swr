@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "fmt": "biome format --write",
+    "lint": "biome lint"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@changesets/cli": "^2.27.11",
+    "typescript": "^5.7.2"
+  }
+}
