@@ -5,6 +5,8 @@
     "module": "NodeNext",
     "lib": ["DOM", "ESNext"],
     "types": [],
+    "declaration": true,
+    "sourceMap": true,
     "skipLibCheck": true,
     "outDir": "out"
   },
