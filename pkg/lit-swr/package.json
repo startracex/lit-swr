@@ -1,6 +1,6 @@
 {
   "name": "lit-swr",
-  "version": "0.0.0-dev",
+  "version": "0.0.0",
   "description": "SWR data fetching for Lit",
   "main": "out/index.js",
   "type": "module",
@@ -16,5 +16,7 @@
   "scripts": {
     "build": "tsc"
   },
-  "files": ["out"]
+  "files": [
+    "out"
+  ]
 }
