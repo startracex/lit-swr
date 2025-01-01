@@ -2,8 +2,10 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
+    "check": "biome check --fix",
     "fmt": "biome format --write",
-    "lint": "biome lint"
+    "lint": "biome lint",
+    "version": "changeset version && pnpm run check"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
