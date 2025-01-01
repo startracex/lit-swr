@@ -8,15 +8,25 @@ Stale-While-Revalidate data fetching for Lit.
 npm i lit-swr
 ```
 
-## Example
+## Examples
+
+### With decorator:
 
 ```ts
 import { html, LitElement } from "lit";
-import { SWR } from "lit-swr";
+import { SWR, type SWRController } from "lit-swr";
 
 class UserProfile extends LitElement {
+  //       key     fetcher         options
   @SWR("/api/user", fetch, { refreshInterval: 5000 })
-  useUser;
+  useUser: SWRController<
+    string, // key type
+    {
+      id: string;
+      name: string;
+      email: string;
+    } // data type
+  >;
 
   render() {
     const { data, error, isValidating, isLoading } = useUser();
@@ -32,6 +42,26 @@ class UserProfile extends LitElement {
       <p>📧 ${data.email}</p>
       <p>💼 ${data.role}</p>
     `;
+  }
+}
+```
+
+### With class property:
+
+```ts
+import { createSWR } from "lit-swr";
+class UserProfile extends LitElement {
+  useUser = createSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
+}
+```
+
+### With function:
+
+```ts
+import { useSWR } from "lit-swr";
+class UserProfile extends LitElement {
+  render() {
+    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
   }
 }
 ```
