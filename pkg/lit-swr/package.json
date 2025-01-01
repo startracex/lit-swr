@@ -1,6 +1,6 @@
 {
   "name": "lit-swr",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "SWR data fetching for Lit",
   "main": "out/index.js",
   "type": "module",
