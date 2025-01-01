@@ -22,7 +22,6 @@
   },
   "license": "MIT",
   "author": "startracex",
-  "files": [
-    "out"
-  ]
+  "keywords": ["lit", "swr"],
+  "files": ["out"]
 }
