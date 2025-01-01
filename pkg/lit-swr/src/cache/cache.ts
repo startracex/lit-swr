@@ -8,7 +8,6 @@ export const resultCache = new LRU<
   {
     data: any;
     error: Error | null;
-    maxAge: number;
     timestamp: number;
   }
 >(256);

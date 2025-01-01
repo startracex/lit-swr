@@ -106,7 +106,6 @@ export class SWRController<K = any, T = any> {
       resultCache.set(this.key, {
         data: this.data,
         error: this.error,
-        maxAge: this.config.maxAge,
         timestamp: this.timestamp,
       });
       this.requestUpdate();
