@@ -1,5 +1,11 @@
 # lit-swr
 
+## 0.0.3
+
+### Patch Changes
+
+- 522f7df: Add missing exports
+
 ## 0.0.2
 
 ### Patch Changes
