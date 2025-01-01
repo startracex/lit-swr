@@ -25,6 +25,7 @@ class UserProfile extends LitElement {
       id: string;
       name: string;
       email: string;
+      role: string;
     } // data type
   >;
 
@@ -50,6 +51,7 @@ class UserProfile extends LitElement {
 
 ```ts
 import { createSWR } from "lit-swr";
+
 class UserProfile extends LitElement {
   useUser = createSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
 }
@@ -59,6 +61,7 @@ class UserProfile extends LitElement {
 
 ```ts
 import { useSWR } from "lit-swr";
+
 class UserProfile extends LitElement {
   render() {
     const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
