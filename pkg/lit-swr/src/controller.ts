@@ -1,7 +1,7 @@
-import { refreshCache, resultCache } from "./cache/cache.js";
 import type { ReactiveControllerHost } from "@lit/reactive-element";
+import { refreshCache, resultCache } from "./cache/cache.js";
 
-import { equal, isAbortError, Status, timeExpired } from "./shared.js";
+import { Status, equal, isAbortError, timeExpired } from "./shared.js";
 
 export type FetcherType<K = string, T = any> = (key: K, init?: RequestInit) => T | Promise<T>;
 
