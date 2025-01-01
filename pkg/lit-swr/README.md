@@ -19,7 +19,7 @@ import { SWR, type SWRController } from "lit-swr";
 class UserProfile extends LitElement {
   //       key     fetcher         options
   @SWR("/api/user", fetch, { refreshInterval: 5000 })
-  useUser: SWRController<
+  useUser: () => SWRController<
     string, // key type
     {
       id: string;
@@ -29,7 +29,7 @@ class UserProfile extends LitElement {
   >;
 
   render() {
-    const { data, error, isValidating, isLoading } = useUser();
+    const { data, error, isValidating, isLoading } = this.useUser();
     if (error) {
       return html`<div>Failed to load: ${error.message}</div>`;
     }
