@@ -1,5 +1,11 @@
 # lit-swr
 
+## 0.0.4
+
+### Patch Changes
+
+- 532a28f: Remove maxAge from cache
+
 ## 0.0.3
 
 ### Patch Changes
