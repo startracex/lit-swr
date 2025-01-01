@@ -27,7 +27,7 @@ export class LRU<K, V> {
       this._moveFront(node);
       return node.value;
     }
-    return undefined;
+    return;
   }
 
   set(key: K, value: V) {
