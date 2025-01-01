@@ -1,5 +1,11 @@
 # lit-swr
 
+## 0.0.2
+
+### Patch Changes
+
+- 6a2e1c0: Refactor SWR interfaces
+
 ## 0.0.1
 
 ### Patch Changes
