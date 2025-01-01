@@ -3,7 +3,7 @@ import type { ReactiveControllerHost } from "@lit/reactive-element";
 
 import { equal, isAbortError, Status, timeExpired } from "./shared.js";
 
-export type FetcherType<K = string, T = any> = (key: K, init?: RequestInit) => Promise<T>;
+export type FetcherType<K = string, T = any> = (key: K, init?: RequestInit) => T | Promise<T>;
 
 const initialMaxAge = 5000;
 
@@ -33,7 +33,7 @@ export class SWRController<K = any, T = any> {
     host: ReactiveControllerHost,
     key: K,
     fetcher: FetcherType<K, T> = defaultFetcher as FetcherType<K, T>,
-    config: SWRController["config"] = {}
+    config: SWRController["config"] = {},
   ) {
     this.host = host;
     this.key = key;

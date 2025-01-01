@@ -3,7 +3,7 @@ import type { ReactiveControllerHost } from "@lit/reactive-element";
 import { controllerCache } from "./cache/cache.js";
 import { type FetcherType, SWRController } from "./controller.js";
 
-type SWRResult<T> = {
+export type SWRResult<T> = {
   isValidating: boolean;
   isLoading: boolean;
 } & (
