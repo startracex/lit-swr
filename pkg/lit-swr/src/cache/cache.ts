@@ -12,7 +12,7 @@ export const resultCache = new LRU<
   }
 >(256);
 
-export const controllerCache = new WeakMap<
+export const uCache = new WeakMap<
   ReactiveControllerHost,
   Map<
     any,

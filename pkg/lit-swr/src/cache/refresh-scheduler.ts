@@ -1,6 +1,7 @@
 import type { ReactiveControllerHost } from "@lit/reactive-element";
 
 import type { SWRController } from "../controller.js";
+import { timeExpired } from "../shared.js";
 
 export class RefreshScheduler {
   private controllers = new WeakMap<ReactiveControllerHost, Set<SWRController>>();
@@ -55,14 +56,13 @@ export class RefreshScheduler {
       return;
     }
 
-    const now = Date.now();
     for (const controller of hostControllers) {
       if (!(controller.host as unknown as HTMLElement).isConnected) {
         continue;
       }
 
       const { refreshInterval } = controller.config;
-      if (now - controller.timestamp >= refreshInterval) {
+      if (timeExpired(controller.timestamp, refreshInterval)) {
         controller.requestUpdate();
       }
     }

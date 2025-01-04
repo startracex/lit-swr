@@ -75,10 +75,7 @@ export class SWRController<K = any, T = any> {
       return;
     }
 
-    if (this.status === Status.rejected) {
-      this.abortController = new AbortController();
-    }
-
+    this.abortController = new AbortController();
     this.isLoading = this.status === Status.pending;
     this.status = Status.pending;
 
@@ -86,6 +83,9 @@ export class SWRController<K = any, T = any> {
       this.isValidating = true;
       const { signal } = this.abortController;
       const data: any = await this.fetcher(this.key, { signal });
+      if (signal.aborted) {
+        return;
+      }
       if (equal(this.data, data)) {
         return;
       }
@@ -114,5 +114,22 @@ export class SWRController<K = any, T = any> {
 
   requestUpdate() {
     this.config.requestUpdate();
+  }
+
+  mutate(data: T) {
+    if (data === undefined) {
+      this.asyncFn();
+      return;
+    }
+    this.data = data;
+    this.isValidating = false;
+    this.timestamp = Date.now();
+    resultCache.set(this.key, {
+      data,
+      error: this.error,
+      timestamp: this.timestamp,
+    });
+    this.abortController.abort();
+    this.requestUpdate();
   }
 }
