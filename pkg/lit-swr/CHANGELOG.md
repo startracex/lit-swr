@@ -1,5 +1,11 @@
 # lit-swr
 
+## 0.1.0
+
+### Minor Changes
+
+- 786eae5: Add mutate method
+
 ## 0.0.4
 
 ### Patch Changes
