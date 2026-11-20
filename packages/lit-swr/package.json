@@ -2,34 +2,43 @@
   "name": "lit-swr",
   "version": "0.1.0",
   "description": "SWR data fetching for Lit",
-  "main": "out/index.js",
   "type": "module",
-  "exports": {
-    ".": "./out/index.js",
-    "./*": "./out/*",
-    "./package.json": "./package.json",
-    "./out/*": null
-  },
-  "peerDependencies": {
-    "@lit/reactive-element": "^1.0.0 || ^2.0.0"
+  "scripts": {
+    "build": "tsc"
   },
   "devDependencies": {
     "@lit/reactive-element": "^2.1.2"
   },
-  "scripts": {
-    "build": "tsc"
+  "peerDependencies": {
+    "@lit/reactive-element": "^1.0.0 || ^2.0.0"
   },
+  "peerDependenciesMeta": {
+    "@lit/reactive-element": {
+      "optional": true
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./out/index.d.ts",
+      "import": "./out/index.js"
+    },
+    "./*": {
+      "types": "./out/*.d.ts",
+      "import": "./out/*.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "out"
+  ],
+  "keywords": [
+    "lit",
+    "swr"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/startracex/lit-swr.git"
   },
   "license": "MIT",
-  "author": "startracex",
-  "keywords": [
-    "lit",
-    "swr"
-  ],
-  "files": [
-    "out"
-  ]
+  "author": "startracex"
 }
