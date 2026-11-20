@@ -3,13 +3,17 @@ import type { ReactiveControllerHost } from "@lit/reactive-element";
 import type { SWRController } from "../controller.js";
 import { isHostConnected, timeExpired } from "../shared.js";
 
+const isDocumentHidden = () => typeof document !== "undefined" && document.hidden;
+
+const isOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
+
 export class RefreshScheduler {
   private controllers = new WeakMap<ReactiveControllerHost, Set<SWRController>>();
   private timers = new WeakMap<ReactiveControllerHost, ReturnType<typeof setInterval>>();
 
   register(controller: SWRController) {
     const { refreshInterval } = controller.config;
-    if (refreshInterval <= 0) {
+    if (refreshInterval <= 0 || !controller.enabled) {
       return;
     }
 
@@ -69,8 +73,24 @@ export class RefreshScheduler {
     }
 
     for (const controller of hostControllers) {
-      const { refreshInterval } = controller.config;
-      if (refreshInterval > 0 && timeExpired(controller.timestamp, refreshInterval)) {
+      if (!controller.enabled) {
+        continue;
+      }
+      const { refreshInterval, refreshWhenHidden, refreshWhenOffline, isPaused } =
+        controller.config;
+      if (!(refreshInterval > 0)) {
+        continue;
+      }
+      if (isDocumentHidden() && !refreshWhenHidden) {
+        continue;
+      }
+      if (isOffline() && !refreshWhenOffline) {
+        continue;
+      }
+      if (isPaused()) {
+        continue;
+      }
+      if (timeExpired(controller.timestamp, refreshInterval)) {
         controller.revalidate({ force: true });
       }
     }

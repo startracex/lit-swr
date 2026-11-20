@@ -50,6 +50,11 @@ export const unsubscribe = (cacheKey: string, controller: SWRController) => {
   }
 };
 
+export const getSubscribers = (cacheKey: string): ReadonlySet<SWRController> =>
+  subscribers.get(cacheKey) ?? emptySubscribers;
+
+const emptySubscribers: ReadonlySet<SWRController> = new Set();
+
 /** Push a cache write to every subscriber of this key except `except`. */
 export const broadcast = (cacheKey: string, entry: CacheEntry, except?: SWRController) => {
   const set = subscribers.get(cacheKey);
@@ -60,6 +65,13 @@ export const broadcast = (cacheKey: string, entry: CacheEntry, except?: SWRContr
     if (controller !== except) {
       controller.syncFromBroadcast(entry);
     }
+  }
+};
+
+/** Ask every subscriber of this key to revalidate. */
+export const revalidateSubscribers = (cacheKey: string, force = true) => {
+  for (const controller of getSubscribers(cacheKey)) {
+    controller.revalidate({ force });
   }
 };
 

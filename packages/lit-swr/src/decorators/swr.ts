@@ -1,7 +1,7 @@
 import type { ReactiveElement } from "@lit/reactive-element";
 import type { Interface } from "@lit/reactive-element/decorators/base.js";
 
-import type { FetcherType, SWRConfig } from "../controller.js";
+import type { FetcherType, SWRConfig } from "../config.js";
 import { type SWRResult, createSWR } from "../swr.js";
 
 type SWRGetter<T> = () => SWRResult<T>;
