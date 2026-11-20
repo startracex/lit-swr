@@ -8,7 +8,7 @@
     "lint": "oxlint --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "version": "changeset version && pnpm run check"
+    "version": "changeset version && oxfmt"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
