@@ -7,6 +7,13 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 
 hljs.registerLanguage("typescript", typescript);
 
+const fetcherSnippet = `const fetchUser = (key: string, init?: RequestInit) =>
+  fetch(key, init).then((res) => {
+    if (!res.ok) throw new Error(res.statusText);
+    return res.json();
+  });
+`;
+
 const commonUsages = `if (error) {
       return html\`<div>Failed to load: \${error.message}</div>\`;
     }
@@ -24,19 +31,17 @@ const usages = [
   {
     name: "Decorator experimental",
     code: `import { html, LitElement } from "lit";
-import { SWR, type SWRController } from "lit-swr";
+import { SWR, type SWRResult } from "lit-swr";
 
+${fetcherSnippet}
 class UserProfile extends LitElement {
-  @SWR("/api/user", fetch, { refreshInterval: 5000 })
-  useUser: () => SWRController<
-    string,
-    {
-      id: string;
-      name: string;
-      email: string;
-      role: string;
-    }
-  >;
+  @SWR("/api/user", fetchUser, { refreshInterval: 5000 })
+  useUser: () => SWRResult<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>;
 
   render() {
     const { data, error, isValidating, isLoading } = this.useUser();
@@ -47,19 +52,17 @@ class UserProfile extends LitElement {
   {
     name: "Decorator",
     code: `import { html, LitElement } from "lit";
-import { SWR, type SWRController } from "lit-swr";
+import { SWR, type SWRResult } from "lit-swr";
 
+${fetcherSnippet}
 class UserProfile extends LitElement {
-  @SWR("/api/user", fetch, { refreshInterval: 5000 })
-  accessor useUser: () => SWRController<
-    string,
-    {
-      id: string;
-      name: string;
-      email: string;
-      role: string;
-    }
-  >;
+  @SWR("/api/user", fetchUser, { refreshInterval: 5000 })
+  accessor useUser: () => SWRResult<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }>;
 
   render() {
     const { data, error, isValidating, isLoading } = this.useUser();
@@ -72,8 +75,9 @@ class UserProfile extends LitElement {
     code: `import { html, LitElement } from "lit";
 import { createSWR } from "lit-swr";
 
+${fetcherSnippet}
 class UserProfile extends LitElement {
-  useUser = createSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
+  useUser = createSWR(this, "/api/user", fetchUser, { refreshInterval: 5000 });
 
   render() {
     const { data, error, isValidating, isLoading } = this.useUser();
@@ -84,11 +88,12 @@ class UserProfile extends LitElement {
   {
     name: "Function",
     code: `import { html, LitElement } from "lit";
-import { createSWR } from "lit-swr";
+import { useSWR } from "lit-swr";
 
+${fetcherSnippet}
 class UserProfile extends LitElement {
   render() {
-    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
+    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetchUser, { refreshInterval: 5000 });
     ${commonUsages}
   }
 }`,
