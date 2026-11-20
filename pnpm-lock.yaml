@@ -191,13 +191,13 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  pkg/lit-swr:
+  packages/lit-swr:
     devDependencies:
       '@lit/reactive-element':
         specifier: ^2.1.2
         version: 2.1.2
 
-  pkg/site:
+  packages/site:
     dependencies:
       '@godown/element':
         specifier: ^2.0.0
