@@ -1,17 +1,20 @@
-class LRUNode<V> {
+class LRUNode<K, V> {
+  key?: K;
   value?: V;
-  prev?: LRUNode<V>;
-  next?: LRUNode<V>;
-  constructor(value?: V) {
+  prev: LRUNode<K, V> | null = null;
+  next: LRUNode<K, V> | null = null;
+
+  constructor(key?: K, value?: V) {
+    this.key = key;
     this.value = value;
   }
 }
 
 export class LRU<K, V> {
   capacity: number;
-  protected head: LRUNode<V>;
-  protected tail: LRUNode<V>;
-  cache = new Map<K, LRUNode<V>>();
+  protected head: LRUNode<K, V>;
+  protected tail: LRUNode<K, V>;
+  cache = new Map<K, LRUNode<K, V>>();
 
   constructor(capacity: number) {
     this.capacity = capacity;
@@ -21,48 +24,85 @@ export class LRU<K, V> {
     this.tail.prev = this.head;
   }
 
+  get size() {
+    return this.cache.size;
+  }
+
   get(key: K): V | undefined {
     const node = this.cache.get(key);
     if (node) {
       this._moveFront(node);
       return node.value;
     }
-    return;
   }
 
   set(key: K, value: V) {
     const exist = this.cache.get(key);
     if (exist) {
-      this._remove(key, exist);
+      this._remove(exist);
     } else if (this.cache.size >= this.capacity) {
-      this._remove(key, this.tail.prev);
+      const lru = this.tail.prev;
+      if (lru && lru !== this.head) {
+        this._remove(lru);
+      }
     }
-    this._insert(key, new LRUNode(value));
+    this._insert(new LRUNode(key, value));
   }
 
-  protected _remove(key: K, node: LRUNode<V>) {
-    this.cache.delete(key);
-    node.prev.next = node.next;
-    node.next.prev = node.prev;
+  delete(key: K) {
+    const node = this.cache.get(key);
+    if (node) {
+      this._remove(node);
+    }
   }
 
-  protected _insert(key: K, node: LRUNode<V>) {
-    this.cache.set(key, node);
-    node.next = this.head.next;
+  protected _remove(node: LRUNode<K, V>) {
+    if (node.key !== undefined) {
+      this.cache.delete(node.key);
+    }
+    const prev = node.prev;
+    const next = node.next;
+    if (prev) {
+      prev.next = next;
+    }
+    if (next) {
+      next.prev = prev;
+    }
+    node.prev = null;
+    node.next = null;
+  }
+
+  protected _insert(node: LRUNode<K, V>) {
+    if (node.key !== undefined) {
+      this.cache.set(node.key, node);
+    }
+    const next = this.head.next;
+    node.next = next;
     node.prev = this.head;
-    this.head.next.prev = node;
+    if (next) {
+      next.prev = node;
+    }
     this.head.next = node;
   }
 
-  protected _moveFront(node: LRUNode<V>) {
+  protected _moveFront(node: LRUNode<K, V>) {
     if (node === this.head.next) {
       return;
     }
-    node.prev.next = node.next;
-    node.next.prev = node.prev;
-    node.next = this.head.next;
+    const prev = node.prev;
+    const next = node.next;
+    if (prev) {
+      prev.next = next;
+    }
+    if (next) {
+      next.prev = prev;
+    }
+    const headNext = this.head.next;
+    node.next = headNext;
     node.prev = this.head;
-    this.head.next.prev = node;
+    if (headNext) {
+      headNext.prev = node;
+    }
     this.head.next = node;
   }
 }

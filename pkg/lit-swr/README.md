@@ -14,20 +14,24 @@ npm i lit-swr
 
 ```ts
 import { html, LitElement } from "lit";
-import { SWR, type SWRController } from "lit-swr";
+import { SWR, type SWRResult } from "lit-swr";
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
+const fetchUser = (key: string, init?: RequestInit) =>
+  fetch(key, init).then((res) => {
+    if (!res.ok) throw new Error(res.statusText);
+    return res.json() as Promise<User>;
+  });
 
 class UserProfile extends LitElement {
-  //       key     fetcher         options
-  @SWR("/api/user", fetch, { refreshInterval: 5000 })
-  useUser: () => SWRController<
-    string, // key type
-    {
-      id: string;
-      name: string;
-      email: string;
-      role: string;
-    } // data type
-  >;
+  @SWR("/api/user", fetchUser, { refreshInterval: 5000 })
+  useUser!: () => SWRResult<User>;
 
   render() {
     const { data, error, isValidating, isLoading } = this.useUser();
@@ -42,10 +46,10 @@ class UserProfile extends LitElement {
       `;
     }
     return html`
-      <h2>${data.name} ${isValidating ? "🔄" : ""}</h2>
-      <p>👤 ${data.id}</p>
-      <p>📧 ${data.email}</p>
-      <p>💼 ${data.role}</p>
+      <h2>${data!.name} ${isValidating ? "🔄" : ""}</h2>
+      <p>${data!.id}</p>
+      <p>${data!.email}</p>
+      <p>${data!.role}</p>
     `;
   }
 }
@@ -57,7 +61,7 @@ class UserProfile extends LitElement {
 import { createSWR } from "lit-swr";
 
 class UserProfile extends LitElement {
-  useUser = createSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
+  useUser = createSWR(this, "/api/user", fetchUser, { refreshInterval: 5000 });
 }
 ```
 
@@ -68,7 +72,7 @@ import { useSWR } from "lit-swr";
 
 class UserProfile extends LitElement {
   render() {
-    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetch, {
+    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetchUser, {
       refreshInterval: 5000,
     });
   }

@@ -1,116 +1,230 @@
-import type { ReactiveControllerHost } from "@lit/reactive-element";
-import { refreshCache, resultCache } from "./cache/cache.js";
+import type { ReactiveController, ReactiveControllerHost } from "@lit/reactive-element";
 
-import { Status, equal, isAbortError, timeExpired } from "./shared.js";
+import {
+  type CacheEntry,
+  type InflightEntry,
+  abortInflight,
+  inflightCache,
+  refreshCache,
+  resultCache,
+} from "./cache/cache.js";
+import { Status, type StatusType, equal, isAbortError, timeExpired, toError } from "./shared.js";
 
 export type FetcherType<K = string, T = any> = (key: K, init?: RequestInit) => T | Promise<T>;
 
-const initialMaxAge = 5000;
+export interface SWRConfig {
+  /** Polling interval in ms. `0` or omitted disables polling. */
+  refreshInterval: number;
+  /** Freshness TTL. Fresh cache skips revalidation unless forced. `0` always revalidates. */
+  maxAge: number;
+  /** Skip starting a new request if the same key finished within this window (unless forced). */
+  dedupingInterval: number;
+  requestUpdate: () => void;
+}
 
-const defaultFetcher = async (key: string) =>
-  fetch(key).then((res) =>
-    res.headers.get("Content-Type") === "application/json" ? res.json() : res.text(),
-  );
+const DEFAULT_MAX_AGE = 5000;
+/** Concurrent dedupe is always on via `inflightCache`; timestamp dedupe is opt-in. */
+const DEFAULT_DEDUPING_INTERVAL = 0;
 
-export class SWRController<K = any, T = any> {
+const defaultFetcher = async (key: string, init?: RequestInit) => {
+  const res = await fetch(key, init);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  }
+  const contentType = res.headers.get("Content-Type") ?? "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+  return res.text();
+};
+
+export class SWRController<K = any, T = any> implements ReactiveController {
   host: ReactiveControllerHost;
   key: K;
   fetcher: FetcherType<K, T>;
-  config: {
-    refreshInterval?: number;
-    maxAge?: number;
-    requestUpdate?: () => void;
-  };
+  config!: SWRConfig;
 
   data: T | null = null;
   error: Error | null = null;
   isValidating = false;
   isLoading = false;
   timestamp = 0;
+  status: StatusType = Status.pending;
 
-  status: (typeof Status)[keyof typeof Status] = Status.pending;
-  abortController: AbortController = new AbortController();
+  private generation = 0;
+  private disposed = false;
 
   constructor(
     host: ReactiveControllerHost,
     key: K,
     fetcher: FetcherType<K, T> = defaultFetcher as FetcherType<K, T>,
-    config: SWRController["config"] = {},
+    config: Partial<SWRConfig> = {},
   ) {
     this.host = host;
     this.key = key;
     this.fetcher = fetcher;
     this.mergeConfig(config);
+    this.hydrateFromCache();
     this.host.addController(this);
   }
 
-  protected mergeConfig(config: SWRController["config"]) {
-    const refreshInterval = config.refreshInterval > 0 ? config.refreshInterval : 0;
-    const maxAge = config.maxAge || refreshInterval || initialMaxAge;
-    this.config = Object.assign({ requestUpdate: () => this.host.requestUpdate() }, config, {
+  protected mergeConfig(config: Partial<SWRConfig>) {
+    const refreshInterval =
+      typeof config.refreshInterval === "number" && config.refreshInterval > 0
+        ? config.refreshInterval
+        : 0;
+    const maxAge = config.maxAge ?? (refreshInterval || DEFAULT_MAX_AGE);
+    const dedupingInterval = config.dedupingInterval ?? DEFAULT_DEDUPING_INTERVAL;
+
+    this.config = {
+      requestUpdate: () => this.host.requestUpdate(),
+      ...config,
       refreshInterval,
       maxAge,
-    });
+      dedupingInterval,
+    };
   }
 
   hostConnected() {
+    this.disposed = false;
     refreshCache.get(this.host).register(this);
   }
 
   hostDisconnected() {
-    refreshCache.delete(this.host);
+    this.disposed = true;
+    this.generation++;
+    this.isValidating = false;
+    this.isLoading = false;
+    refreshCache.get(this.host).unregister(this);
   }
 
-  async asyncFn() {
-    if (this.isValidating) {
+  /** Kick off revalidation from render. Safe to call every update. */
+  asyncFn() {
+    this.revalidate();
+  }
+
+  /**
+   * Stale-while-revalidate:
+   * 1. Serve cached data immediately when present
+   * 2. Revalidate in the background when stale or `force`d
+   */
+  async revalidate(options: { force?: boolean } = {}) {
+    if (this.disposed) {
       return;
     }
 
-    const cacheItem = resultCache.get(this.key);
+    const force = options.force === true;
+    const cached = resultCache.get(this.key) as CacheEntry<T> | undefined;
 
-    if (cacheItem && !timeExpired(cacheItem.timestamp, this.config.maxAge)) {
-      this.data = cacheItem.data;
-      this.error = cacheItem.error;
-      this.timestamp = cacheItem.timestamp;
-      this.status = cacheItem.error ? Status.rejected : Status.fulfilled;
-      this.requestUpdate();
+    if (cached) {
+      const changed =
+        cached.timestamp !== this.timestamp ||
+        cached.error !== this.error ||
+        !equal(cached.data, this.data);
+      if (changed) {
+        this.applyEntry(cached);
+        this.requestUpdate();
+      }
+
+      if (!force && !timeExpired(cached.timestamp, this.config.maxAge)) {
+        return;
+      }
+
+      if (!force && !timeExpired(cached.timestamp, this.config.dedupingInterval)) {
+        return;
+      }
+    }
+
+    if (this.isValidating && !force) {
       return;
     }
 
-    this.abortController = new AbortController();
-    this.isLoading = this.status === Status.pending;
-    this.status = Status.pending;
+    if (force && this.isValidating) {
+      this.generation++;
+      abortInflight(this.key);
+      this.isValidating = false;
+    }
+
+    await this.startRequest();
+  }
+
+  private hydrateFromCache() {
+    const cached = resultCache.get(this.key) as CacheEntry<T> | undefined;
+    if (cached) {
+      this.applyEntry(cached);
+    }
+  }
+
+  private applyEntry(entry: CacheEntry<T>) {
+    this.data = entry.data;
+    this.error = entry.error;
+    this.timestamp = entry.timestamp;
+    if (entry.error) {
+      this.status = Status.rejected;
+    } else if (entry.timestamp > 0) {
+      this.status = Status.fulfilled;
+    }
+  }
+
+  private async startRequest() {
+    if (this.disposed) {
+      return;
+    }
+
+    const gen = this.generation;
+    let entry = inflightCache.get(this.key) as InflightEntry<T> | undefined;
+
+    if (!entry) {
+      const abort = new AbortController();
+      const promise = Promise.resolve()
+        .then(() => this.fetcher(this.key, { signal: abort.signal }))
+        .finally(() => {
+          if (inflightCache.get(this.key)?.promise === promise) {
+            inflightCache.delete(this.key);
+          }
+        });
+      entry = { promise, abort };
+      inflightCache.set(this.key, entry);
+    }
+
+    this.isLoading = this.data === null && this.error === null;
+    this.isValidating = true;
+    this.requestUpdate();
 
     try {
-      this.isValidating = true;
-      const { signal } = this.abortController;
-      const data: any = await this.fetcher(this.key, { signal });
-      if (signal.aborted) {
+      const data = await entry.promise;
+      if (this.disposed || gen !== this.generation) {
         return;
       }
-      if (equal(this.data, data)) {
-        return;
-      }
+
       this.data = data;
       this.error = null;
       this.status = Status.fulfilled;
+      this.timestamp = Date.now();
+      resultCache.set(this.key, {
+        data,
+        error: null,
+        timestamp: this.timestamp,
+      });
     } catch (error) {
-      if (isAbortError(error)) {
+      if (isAbortError(error) || this.disposed || gen !== this.generation) {
         return;
       }
+      this.error = toError(error);
       this.status = Status.rejected;
-      this.data = null;
-      this.error = error;
-    } finally {
       this.timestamp = Date.now();
-      this.isValidating = false;
-      this.isLoading = false;
+      // Keep previous data on error (stale-if-error)
       resultCache.set(this.key, {
         data: this.data,
         error: this.error,
         timestamp: this.timestamp,
       });
-      this.requestUpdate();
+    } finally {
+      if (!this.disposed && gen === this.generation) {
+        this.isValidating = false;
+        this.isLoading = false;
+        this.requestUpdate();
+      }
     }
   }
 
@@ -118,20 +232,26 @@ export class SWRController<K = any, T = any> {
     this.config.requestUpdate();
   }
 
-  mutate(data: T) {
+  mutate(data?: T) {
     if (data === undefined) {
-      this.asyncFn();
+      this.revalidate({ force: true });
       return;
     }
+
+    this.generation++;
+    abortInflight(this.key);
+
     this.data = data;
+    this.error = null;
+    this.status = Status.fulfilled;
     this.isValidating = false;
+    this.isLoading = false;
     this.timestamp = Date.now();
     resultCache.set(this.key, {
       data,
-      error: this.error,
+      error: null,
       timestamp: this.timestamp,
     });
-    this.abortController.abort();
     this.requestUpdate();
   }
 }

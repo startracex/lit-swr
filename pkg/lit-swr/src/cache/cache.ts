@@ -3,14 +3,29 @@ import type { ReactiveControllerHost } from "@lit/reactive-element";
 import { LRU } from "./lru.js";
 import { RefreshScheduler } from "./refresh-scheduler.js";
 
-export const resultCache = new LRU<
-  unknown,
-  {
-    data: any;
-    error: Error | null;
-    timestamp: number;
+export interface CacheEntry<T = any> {
+  data: T | null;
+  error: Error | null;
+  timestamp: number;
+}
+
+export interface InflightEntry<T = any> {
+  promise: Promise<T>;
+  abort: AbortController;
+}
+
+export const resultCache = new LRU<unknown, CacheEntry>(256);
+
+export const inflightCache = new Map<unknown, InflightEntry>();
+
+export const abortInflight = (key: unknown) => {
+  const entry = inflightCache.get(key);
+  if (!entry) {
+    return;
   }
->(256);
+  inflightCache.delete(key);
+  entry.abort.abort();
+};
 
 export const uCache = new WeakMap<
   ReactiveControllerHost,
@@ -21,6 +36,7 @@ export const uCache = new WeakMap<
       error: Error | null;
       isValidating: boolean;
       isLoading: boolean;
+      mutate: (data?: any) => void;
     }
   >
 >();

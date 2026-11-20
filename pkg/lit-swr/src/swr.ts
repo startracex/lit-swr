@@ -1,28 +1,21 @@
 import type { ReactiveControllerHost } from "@lit/reactive-element";
 
 import { uCache } from "./cache/cache.js";
-import { type FetcherType, SWRController } from "./controller.js";
+import { type FetcherType, type SWRConfig, SWRController } from "./controller.js";
 
-export type SWRResult<T> = {
+export interface SWRResult<T> {
+  data: T | null;
+  error: Error | null;
   isValidating: boolean;
   isLoading: boolean;
   mutate: (data?: T) => void;
-} & (
-  | {
-      data: T;
-      error: null;
-    }
-  | {
-      data: null;
-      error: Error;
-    }
-);
+}
 
 export function createSWR<K = any, T = any>(
   host: ReactiveControllerHost,
   key: K,
   fetcher?: FetcherType<K, T>,
-  config?: Partial<SWRController["config"]>,
+  config?: Partial<SWRConfig>,
 ): () => SWRResult<T> {
   const controller = new SWRController<K, T>(host, key, fetcher, config);
   return () => {
@@ -32,8 +25,8 @@ export function createSWR<K = any, T = any>(
       error: controller.error,
       isValidating: controller.isValidating,
       isLoading: controller.isLoading,
-      mutate: controller.mutate.bind(controller),
-    } as SWRResult<T>;
+      mutate: (data?: T) => controller.mutate(data),
+    };
   };
 }
 
@@ -41,9 +34,9 @@ export function useSWR<K = any, T = any>(
   host: ReactiveControllerHost,
   key: K,
   fetcher: FetcherType<K, T>,
-  config?: Partial<SWRController["config"]>,
+  config?: Partial<SWRConfig>,
 ): SWRResult<T> {
-  let hostCache = uCache.get(host) as Map<K, () => SWRResult<T>>;
+  let hostCache = uCache.get(host) as Map<K, () => SWRResult<T>> | undefined;
   if (!hostCache) {
     hostCache = new Map();
     uCache.set(host, hostCache);

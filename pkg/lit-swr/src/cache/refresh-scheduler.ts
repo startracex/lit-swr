@@ -1,11 +1,11 @@
 import type { ReactiveControllerHost } from "@lit/reactive-element";
 
 import type { SWRController } from "../controller.js";
-import { timeExpired } from "../shared.js";
+import { isHostConnected, timeExpired } from "../shared.js";
 
 export class RefreshScheduler {
   private controllers = new WeakMap<ReactiveControllerHost, Set<SWRController>>();
-  private timers = new WeakMap<ReactiveControllerHost, number>();
+  private timers = new WeakMap<ReactiveControllerHost, ReturnType<typeof setInterval>>();
 
   register(controller: SWRController) {
     const { refreshInterval } = controller.config;
@@ -25,13 +25,18 @@ export class RefreshScheduler {
 
   unregister(controller: SWRController) {
     const hostControllers = this.controllers.get(controller.host);
-    if (hostControllers) {
-      hostControllers.delete(controller);
-      if (!hostControllers.size) {
-        this.controllers.delete(controller.host);
-        this.clearTimer(controller.host);
-      }
+    if (!hostControllers) {
+      return;
     }
+
+    hostControllers.delete(controller);
+    if (!hostControllers.size) {
+      this.controllers.delete(controller.host);
+      this.clearTimer(controller.host);
+      return;
+    }
+
+    this.scheduleRefresh(controller.host);
   }
 
   private scheduleRefresh(host: ReactiveControllerHost) {
@@ -43,6 +48,9 @@ export class RefreshScheduler {
     }
 
     const refreshInterval = Math.min(...[...hostControllers].map((c) => c.config.refreshInterval));
+    if (!(refreshInterval > 0)) {
+      return;
+    }
 
     this.timers.set(
       host,
@@ -56,21 +64,21 @@ export class RefreshScheduler {
       return;
     }
 
-    for (const controller of hostControllers) {
-      if (!(controller.host as unknown as HTMLElement).isConnected) {
-        continue;
-      }
+    if (!isHostConnected(host)) {
+      return;
+    }
 
+    for (const controller of hostControllers) {
       const { refreshInterval } = controller.config;
-      if (timeExpired(controller.timestamp, refreshInterval)) {
-        controller.requestUpdate();
+      if (refreshInterval > 0 && timeExpired(controller.timestamp, refreshInterval)) {
+        controller.revalidate({ force: true });
       }
     }
   }
 
   private clearTimer(host: ReactiveControllerHost) {
     const timer = this.timers.get(host);
-    if (timer) {
+    if (timer !== undefined) {
       clearInterval(timer);
       this.timers.delete(host);
     }
