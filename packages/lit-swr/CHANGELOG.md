@@ -1,5 +1,13 @@
 # lit-swr
 
+## 0.2.0
+
+### Minor Changes
+
+- 2e83707: feat: add cache key serialization and broadcast to SWRController
+- f8b5a44: refactor: improve SWRController caching and revalidation
+- cdf981f: feat: add SWR config, mutate, and event modules
+
 ## 0.1.0
 
 ### Minor Changes
