@@ -6,6 +6,8 @@
     "check": "oxlint && oxfmt --check",
     "fmt": "oxfmt",
     "lint": "oxlint --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "version": "changeset version && pnpm run check"
   },
   "devDependencies": {
@@ -13,7 +15,8 @@
     "@startracex/dev-config": "^0.7.0",
     "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
   },
   "packageManager": "pnpm@12.21.0"
 }

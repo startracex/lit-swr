@@ -19,6 +19,12 @@ export const resultCache = new LRU<string, CacheEntry>(256);
 
 export const inflightCache = new Map<string, InflightEntry>();
 
+export const clearCaches = () => {
+  resultCache.clear();
+  inflightCache.clear();
+  subscribers.clear();
+};
+
 const subscribers = new Map<string, Set<SWRController>>();
 
 export const abortInflight = (cacheKey: string) => {

@@ -38,7 +38,7 @@ export function createSWR<K = any, T = any>(
   key: K,
   fetcher?: FetcherType<K, T>,
   config?: Partial<SWRConfig<T>>,
-): () => SWRResult<T> {
+): SWRGetter<T> {
   const controller = new SWRController<K, T>(host, key, fetcher, config);
   const getter: SWRGetter<T> = () => {
     controller.asyncFn();

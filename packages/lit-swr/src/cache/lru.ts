@@ -56,6 +56,12 @@ export class LRU<K, V> {
     }
   }
 
+  clear() {
+    this.cache.clear();
+    this.head.next = this.tail;
+    this.tail.prev = this.head;
+  }
+
   protected _remove(node: LRUNode<K, V>) {
     if (node.key !== undefined) {
       this.cache.delete(node.key);

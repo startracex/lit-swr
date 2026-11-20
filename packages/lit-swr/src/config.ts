@@ -77,6 +77,10 @@ export const configureSWR = (config: Partial<SWRConfig>) => {
   globalOverrides = { ...globalOverrides, ...config };
 };
 
+export const resetSWRConfig = () => {
+  globalOverrides = {};
+};
+
 export const getDefaultConfig = (): Omit<SWRConfig, "requestUpdate"> => ({
   ...baseDefaults,
   ...globalOverrides,

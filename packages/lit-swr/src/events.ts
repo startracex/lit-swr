@@ -83,3 +83,18 @@ export const unregisterFocusEvents = (controller: Focusable) => {
   lastFocusRevalidate.delete(controller);
   maybeStopListening();
 };
+
+export const resetFocusEvents = () => {
+  focusControllers.clear();
+  reconnectControllers.clear();
+  if (!listening) {
+    return;
+  }
+  listening = false;
+  if (typeof globalThis.removeEventListener !== "function") {
+    return;
+  }
+  globalThis.removeEventListener("focus", onFocus);
+  globalThis.removeEventListener("online", onOnline);
+  globalThis.document?.removeEventListener("visibilitychange", onVisibility);
+};

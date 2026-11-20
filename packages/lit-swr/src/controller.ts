@@ -99,7 +99,9 @@ export class SWRController<K = any, T = any> implements ReactiveController {
 
   /** Swap key (used by useSWR when keepPreviousData / key changes). */
   setKey(key: K, previousData?: T | null) {
-    if (serializeKey(key) === this.cacheKey && key === this.key) {
+    const nextCacheKey = serializeKey(key);
+    if (nextCacheKey === this.cacheKey) {
+      this.key = key;
       return;
     }
 
