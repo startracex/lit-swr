@@ -84,7 +84,9 @@ export class SWRHero extends LitElement {
     const { data, error, isValidating, isLoading } = this.useHero();
 
     if (error) {
-      return html`<div>Failed to load: ${error.message}</div>`;
+      return html`
+        <div>Failed to load: ${error.message}</div>
+      `;
     }
 
     return html`
@@ -96,12 +98,23 @@ export class SWRHero extends LitElement {
         <h2 id="content">${isLoading ? "Loading" : data}</h2>
         <div class="counter">Update count: ${this.count}</div>
         <div class="counter">Fetch count: ${this.fetchCount}</div>
-        <button id="update" @click=${() => this.requestUpdate()}>Request Update</button>
+        <button
+          id="update"
+          @click=${() => this.requestUpdate()}
+        >
+          Request Update
+        </button>
         <div id="links">
-          <a href="https://github.com/startracex/lit-swr" target="_blank">
+          <a
+            href="https://github.com/startracex/lit-swr"
+            target="_blank"
+          >
             <button style="background:#252323;">GitHub</button>
           </a>
-          <a href="https://www.npmjs.com/package/lit-swr" target="_blank">
+          <a
+            href="https://www.npmjs.com/package/lit-swr"
+            target="_blank"
+          >
             <button style="background:#be0d0d;">NPM</button>
           </a>
         </div>

@@ -3,13 +3,18 @@
     "target": "ES2017",
     "moduleResolution": "NodeNext",
     "module": "NodeNext",
-    "lib": ["DOM", "ESNext"],
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
     "types": [],
     "declaration": true,
     "sourceMap": true,
     "skipLibCheck": true,
     "outDir": "out"
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "exclude": []
 }

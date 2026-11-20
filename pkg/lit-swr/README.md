@@ -32,10 +32,14 @@ class UserProfile extends LitElement {
   render() {
     const { data, error, isValidating, isLoading } = this.useUser();
     if (error) {
-      return html`<div>Failed to load: ${error.message}</div>`;
+      return html`
+        <div>Failed to load: ${error.message}</div>
+      `;
     }
     if (isLoading) {
-      return html`<div>Loading</div>`;
+      return html`
+        <div>Loading</div>
+      `;
     }
     return html`
       <h2>${data.name} ${isValidating ? "🔄" : ""}</h2>
@@ -64,7 +68,9 @@ import { useSWR } from "lit-swr";
 
 class UserProfile extends LitElement {
   render() {
-    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetch, { refreshInterval: 5000 });
+    const { data, error, isValidating, isLoading } = useSWR(this, "/api/user", fetch, {
+      refreshInterval: 5000,
+    });
   }
 }
 ```

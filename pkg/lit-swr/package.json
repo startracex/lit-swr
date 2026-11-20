@@ -10,8 +10,11 @@
     "./package.json": "./package.json",
     "./out/*": null
   },
+  "peerDependencies": {
+    "@lit/reactive-element": "^1.0.0 || ^2.0.0"
+  },
   "devDependencies": {
-    "@lit/reactive-element": "^2.0.0"
+    "@lit/reactive-element": "^2.1.2"
   },
   "scripts": {
     "build": "tsc"
@@ -22,6 +25,11 @@
   },
   "license": "MIT",
   "author": "startracex",
-  "keywords": ["lit", "swr"],
-  "files": ["out"]
+  "keywords": [
+    "lit",
+    "swr"
+  ],
+  "files": [
+    "out"
+  ]
 }

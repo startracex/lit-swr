@@ -8,7 +8,9 @@ export type FetcherType<K = string, T = any> = (key: K, init?: RequestInit) => T
 const initialMaxAge = 5000;
 
 const defaultFetcher = async (key: string) =>
-  fetch(key).then((res) => (res.headers.get("Content-Type") === "application/json" ? res.json() : res.text()));
+  fetch(key).then((res) =>
+    res.headers.get("Content-Type") === "application/json" ? res.json() : res.text(),
+  );
 
 export class SWRController<K = any, T = any> {
   host: ReactiveControllerHost;

@@ -2,14 +2,17 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
-    "check": "biome check --fix",
-    "fmt": "biome format --write",
-    "lint": "biome lint",
+    "check": "oxlint && oxfmt --check",
+    "fmt": "oxfmt",
+    "lint": "oxlint --fix",
     "version": "changeset version && pnpm run check"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@changesets/cli": "^2.27.11",
-    "typescript": "^5.7.2"
-  }
+    "@changesets/cli": "^3.0.3",
+    "@startracex/dev-config": "^0.7.0",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "pnpm@12.21.0"
 }

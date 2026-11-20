@@ -199,18 +199,20 @@ export class SWRUsages extends LitElement {
       <h3>Examples</h3>
       <div>
         ${usages.map(({ name }, index) => {
-          return html`<label for=${name}>
-            <input
-              name="1"
-              id=${name}
-              type="radio"
-              ?checked=${this.current === index}
-              @change=${() => {
-                this.current = index;
-              }}
-            />
-            ${name}
-          </label>`;
+          return html`
+            <label for=${name}>
+              <input
+                name="1"
+                id=${name}
+                type="radio"
+                ?checked=${this.current === index}
+                @change=${() => {
+                  this.current = index;
+                }}
+              />
+              ${name}
+            </label>
+          `;
         })}
       </div>
       <pre><code>${unsafeHTML(code)}</code></pre>
