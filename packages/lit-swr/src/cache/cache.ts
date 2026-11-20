@@ -1,5 +1,6 @@
 import type { ReactiveControllerHost } from "@lit/reactive-element";
 
+import type { SWRController } from "../controller.js";
 import { LRU } from "./lru.js";
 import { RefreshScheduler } from "./refresh-scheduler.js";
 
@@ -14,23 +15,58 @@ export interface InflightEntry<T = any> {
   abort: AbortController;
 }
 
-export const resultCache = new LRU<unknown, CacheEntry>(256);
+export const resultCache = new LRU<string, CacheEntry>(256);
 
-export const inflightCache = new Map<unknown, InflightEntry>();
+export const inflightCache = new Map<string, InflightEntry>();
 
-export const abortInflight = (key: unknown) => {
-  const entry = inflightCache.get(key);
+const subscribers = new Map<string, Set<SWRController>>();
+
+export const abortInflight = (cacheKey: string) => {
+  const entry = inflightCache.get(cacheKey);
   if (!entry) {
     return;
   }
-  inflightCache.delete(key);
+  inflightCache.delete(cacheKey);
   entry.abort.abort();
+};
+
+export const subscribe = (cacheKey: string, controller: SWRController) => {
+  let set = subscribers.get(cacheKey);
+  if (!set) {
+    set = new Set();
+    subscribers.set(cacheKey, set);
+  }
+  set.add(controller);
+};
+
+export const unsubscribe = (cacheKey: string, controller: SWRController) => {
+  const set = subscribers.get(cacheKey);
+  if (!set) {
+    return;
+  }
+  set.delete(controller);
+  if (!set.size) {
+    subscribers.delete(cacheKey);
+  }
+};
+
+/** Push a cache write to every subscriber of this key except `except`. */
+export const broadcast = (cacheKey: string, entry: CacheEntry, except?: SWRController) => {
+  const set = subscribers.get(cacheKey);
+  if (!set) {
+    return;
+  }
+  for (const controller of set) {
+    if (controller !== except) {
+      controller.syncFromBroadcast(entry);
+    }
+  }
 };
 
 export const uCache = new WeakMap<
   ReactiveControllerHost,
   Map<
-    any,
+    string,
     () => {
       data: any;
       error: Error | null;

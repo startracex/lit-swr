@@ -4,11 +4,22 @@ import {
   type CacheEntry,
   type InflightEntry,
   abortInflight,
+  broadcast,
   inflightCache,
   refreshCache,
   resultCache,
+  subscribe,
+  unsubscribe,
 } from "./cache/cache.js";
-import { Status, type StatusType, equal, isAbortError, timeExpired, toError } from "./shared.js";
+import {
+  Status,
+  type StatusType,
+  equal,
+  isAbortError,
+  serializeKey,
+  timeExpired,
+  toError,
+} from "./shared.js";
 
 export type FetcherType<K = string, T = any> = (key: K, init?: RequestInit) => T | Promise<T>;
 
@@ -41,6 +52,8 @@ const defaultFetcher = async (key: string, init?: RequestInit) => {
 export class SWRController<K = any, T = any> implements ReactiveController {
   host: ReactiveControllerHost;
   key: K;
+  /** Stable key used for shared caches / dedupe / subscribers. */
+  cacheKey: string;
   fetcher: FetcherType<K, T>;
   config!: SWRConfig;
 
@@ -53,6 +66,7 @@ export class SWRController<K = any, T = any> implements ReactiveController {
 
   private generation = 0;
   private disposed = false;
+  private updateScheduled = false;
 
   constructor(
     host: ReactiveControllerHost,
@@ -62,13 +76,14 @@ export class SWRController<K = any, T = any> implements ReactiveController {
   ) {
     this.host = host;
     this.key = key;
+    this.cacheKey = serializeKey(key);
     this.fetcher = fetcher;
     this.mergeConfig(config);
     this.hydrateFromCache();
     this.host.addController(this);
   }
 
-  protected mergeConfig(config: Partial<SWRConfig>) {
+  mergeConfig(config: Partial<SWRConfig>) {
     const refreshInterval =
       typeof config.refreshInterval === "number" && config.refreshInterval > 0
         ? config.refreshInterval
@@ -87,6 +102,7 @@ export class SWRController<K = any, T = any> implements ReactiveController {
 
   hostConnected() {
     this.disposed = false;
+    subscribe(this.cacheKey, this);
     refreshCache.get(this.host).register(this);
   }
 
@@ -95,6 +111,7 @@ export class SWRController<K = any, T = any> implements ReactiveController {
     this.generation++;
     this.isValidating = false;
     this.isLoading = false;
+    unsubscribe(this.cacheKey, this);
     refreshCache.get(this.host).unregister(this);
   }
 
@@ -114,7 +131,7 @@ export class SWRController<K = any, T = any> implements ReactiveController {
     }
 
     const force = options.force === true;
-    const cached = resultCache.get(this.key) as CacheEntry<T> | undefined;
+    const cached = resultCache.get(this.cacheKey) as CacheEntry<T> | undefined;
 
     if (cached) {
       const changed =
@@ -141,15 +158,33 @@ export class SWRController<K = any, T = any> implements ReactiveController {
 
     if (force && this.isValidating) {
       this.generation++;
-      abortInflight(this.key);
+      abortInflight(this.cacheKey);
       this.isValidating = false;
     }
 
     await this.startRequest();
   }
 
+  /** Apply a shared cache write from another subscriber. */
+  syncFromBroadcast(entry: CacheEntry) {
+    if (this.disposed) {
+      return;
+    }
+    const changed =
+      entry.timestamp !== this.timestamp ||
+      entry.error !== this.error ||
+      !equal(entry.data, this.data);
+    if (!changed) {
+      return;
+    }
+    this.applyEntry(entry as CacheEntry<T>);
+    this.isValidating = false;
+    this.isLoading = false;
+    this.requestUpdate();
+  }
+
   private hydrateFromCache() {
-    const cached = resultCache.get(this.key) as CacheEntry<T> | undefined;
+    const cached = resultCache.get(this.cacheKey) as CacheEntry<T> | undefined;
     if (cached) {
       this.applyEntry(cached);
     }
@@ -166,25 +201,30 @@ export class SWRController<K = any, T = any> implements ReactiveController {
     }
   }
 
+  private writeCache(entry: CacheEntry<T>) {
+    resultCache.set(this.cacheKey, entry);
+    broadcast(this.cacheKey, entry, this);
+  }
+
   private async startRequest() {
     if (this.disposed) {
       return;
     }
 
     const gen = this.generation;
-    let entry = inflightCache.get(this.key) as InflightEntry<T> | undefined;
+    let entry = inflightCache.get(this.cacheKey) as InflightEntry<T> | undefined;
 
     if (!entry) {
       const abort = new AbortController();
       const promise = Promise.resolve()
         .then(() => this.fetcher(this.key, { signal: abort.signal }))
         .finally(() => {
-          if (inflightCache.get(this.key)?.promise === promise) {
-            inflightCache.delete(this.key);
+          if (inflightCache.get(this.cacheKey)?.promise === promise) {
+            inflightCache.delete(this.cacheKey);
           }
         });
       entry = { promise, abort };
-      inflightCache.set(this.key, entry);
+      inflightCache.set(this.cacheKey, entry);
     }
 
     this.isLoading = this.data === null && this.error === null;
@@ -201,20 +241,30 @@ export class SWRController<K = any, T = any> implements ReactiveController {
       this.error = null;
       this.status = Status.fulfilled;
       this.timestamp = Date.now();
-      resultCache.set(this.key, {
+      this.writeCache({
         data,
         error: null,
         timestamp: this.timestamp,
       });
     } catch (error) {
-      if (isAbortError(error) || this.disposed || gen !== this.generation) {
+      if (this.disposed || gen !== this.generation) {
         return;
       }
+
+      if (isAbortError(error)) {
+        // Another subscriber restarted the key — join the new in-flight request.
+        const latest = inflightCache.get(this.cacheKey) as InflightEntry<T> | undefined;
+        if (latest && latest.promise !== entry.promise) {
+          await this.startRequest();
+        }
+        return;
+      }
+
       this.error = toError(error);
       this.status = Status.rejected;
       this.timestamp = Date.now();
       // Keep previous data on error (stale-if-error)
-      resultCache.set(this.key, {
+      this.writeCache({
         data: this.data,
         error: this.error,
         timestamp: this.timestamp,
@@ -228,8 +278,18 @@ export class SWRController<K = any, T = any> implements ReactiveController {
     }
   }
 
+  /** Schedule host update asynchronously to avoid sync updates during render. */
   requestUpdate() {
-    this.config.requestUpdate();
+    if (this.updateScheduled || this.disposed) {
+      return;
+    }
+    this.updateScheduled = true;
+    queueMicrotask(() => {
+      this.updateScheduled = false;
+      if (!this.disposed) {
+        this.config.requestUpdate();
+      }
+    });
   }
 
   mutate(data?: T) {
@@ -239,7 +299,7 @@ export class SWRController<K = any, T = any> implements ReactiveController {
     }
 
     this.generation++;
-    abortInflight(this.key);
+    abortInflight(this.cacheKey);
 
     this.data = data;
     this.error = null;
@@ -247,7 +307,7 @@ export class SWRController<K = any, T = any> implements ReactiveController {
     this.isValidating = false;
     this.isLoading = false;
     this.timestamp = Date.now();
-    resultCache.set(this.key, {
+    this.writeCache({
       data,
       error: null,
       timestamp: this.timestamp,
